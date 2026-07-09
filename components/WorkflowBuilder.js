@@ -17,6 +17,7 @@ const fieldTypes = [
   "parcelsearch",
   "required-user",
   "select-contractor",
+  "table",
   "file",
 ];
 
@@ -31,6 +32,7 @@ const createField = () => ({
   optionsText: "",
   dbField: "",
   dbTable: "",
+  matchedTemplateCode: "",
   minLength: "",
   maxLength: "",
   minValue: "",
@@ -38,6 +40,7 @@ const createField = () => ({
   conditionallyVisible: "[]",
   conditionallyRequired: "[]",
   formulaOutputs: "[]",
+  tableLayout: '{\n  "Columns": []\n}',
 });
 
 const createActivity = () => ({
@@ -46,8 +49,6 @@ const createActivity = () => ({
   description: "",
   helpText: "",
   required: true,
-  roleRecipients: "",
-  contractorTypes: "",
   routes: "[]",
   fields: [createField()],
 });
@@ -70,7 +71,9 @@ const examples = {
   formulas:
     '[\n  {\n    "value": "250",\n    "isOtherwise": false,\n    "conditions": [\n      {\n        "field": "squareFootage",\n        "operator": "GREATER_THAN",\n        "value": 500\n      }\n    ]\n  }\n]',
   routes:
-    '[\n  {\n    "name": "Review Route",\n    "toActivity": "Reviewer Approval",\n    "routeActivity": "Applicant Details",\n    "isOtherwise": false,\n    "conditions": [\n      {\n        "field": "permitType",\n        "operator": "EQUALS",\n        "value": "Commercial"\n      }\n    ]\n  }\n]',
+    '[\n  {\n    "Name": "Review Route",\n    "ToActivity": "Reviewer Approval",\n    "RouteActivity": "Applicant Details",\n    "IsOtherwise": false,\n    "Conditions": [\n      {\n        "field": "permitType",\n        "operator": "EQUALS",\n        "value": "Commercial"\n      }\n    ]\n  }\n]',
+  tableLayout:
+    '{\n  "Columns": [\n    {\n      "Label": "Name",\n      "Type": "text",\n      "Name": "Name",\n      "Required": false\n    },\n    {\n      "Label": "Hazard Type",\n      "Type": "text",\n      "Name": "HazardType",\n      "Required": false\n    }\n  ]\n}',
 };
 
 function FieldEditor({ field, index, activityIndex, onChange, onRemove }) {
@@ -128,6 +131,14 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove }) {
         </label>
 
         <label>
+          Matched Template Code
+          <input
+            value={field.matchedTemplateCode}
+            onChange={(e) => key("matchedTemplateCode", e.target.value)}
+          />
+        </label>
+
+        <label>
           Min Length
           <input value={field.minLength} onChange={(e) => key("minLength", e.target.value)} />
         </label>
@@ -147,14 +158,16 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove }) {
           <input value={field.maxValue} onChange={(e) => key("maxValue", e.target.value)} />
         </label>
 
-        <label className="full-width">
-          Options (comma separated)
-          <input
-            value={field.optionsText}
-            onChange={(e) => key("optionsText", e.target.value)}
-            placeholder="Pending, Approved, Rejected"
-          />
-        </label>
+        {field.type !== "table" ? (
+          <label className="full-width">
+            Options (comma separated)
+            <input
+              value={field.optionsText}
+              onChange={(e) => key("optionsText", e.target.value)}
+              placeholder="Pending, Approved, Rejected"
+            />
+          </label>
+        ) : null}
 
         <label className="full-width">
           Conditionally Visible JSON
@@ -182,6 +195,17 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove }) {
             placeholder={examples.formulas}
           />
         </label>
+
+        {field.type === "table" ? (
+          <label className="full-width">
+            Table Layout JSON
+            <textarea
+              value={field.tableLayout}
+              onChange={(e) => key("tableLayout", e.target.value)}
+              placeholder={examples.tableLayout}
+            />
+          </label>
+        ) : null}
       </div>
 
       <div className="toggle-row">
@@ -254,24 +278,6 @@ function ActivityEditor({
         <label>
           Type
           <input value={activity.type} onChange={(e) => key("type", e.target.value)} />
-        </label>
-
-        <label>
-          Department Role Recipients
-          <input
-            value={activity.roleRecipients}
-            onChange={(e) => key("roleRecipients", e.target.value)}
-            placeholder="Reviewer, Permit Manager"
-          />
-        </label>
-
-        <label>
-          Contractor Types
-          <input
-            value={activity.contractorTypes}
-            onChange={(e) => key("contractorTypes", e.target.value)}
-            placeholder="General, Electrical"
-          />
         </label>
 
         <label className="full-width">
@@ -627,10 +633,10 @@ export default function WorkflowBuilder() {
               ) : (
                 savedWorkflows.map((workflow) => (
                   <article key={workflow._id} className="saved-item">
-                    <h3>{workflow.workflowDescription}</h3>
-                    <p>{workflow.department || "No department"}</p>
+                    <h3>{workflow.WorkflowDescription || workflow.workflowDescription}</h3>
+                    <p>{workflow.Department || workflow.department || "No department"}</p>
                     <p>
-                      Version {workflow.version} • {workflow.isPublished ? "Published" : "Draft"}
+                      Version {workflow.version} • {(workflow.isPublished || workflow.IsPublished) ? "Published" : "Draft"}
                     </p>
                   </article>
                 ))
