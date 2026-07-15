@@ -74,6 +74,8 @@ const examples = {
     '[\n  {\n    "Name": "Review Route",\n    "ToActivity": "Reviewer Approval",\n    "RouteActivity": "Applicant Details",\n    "IsOtherwise": false,\n    "Conditions": [\n      {\n        "field": "permitType",\n        "operator": "EQUALS",\n        "value": "Commercial"\n      }\n    ]\n  }\n]',
   tableLayout:
     '{\n  "Columns": [\n    {\n      "Label": "Name",\n      "Type": "text",\n      "Name": "Name",\n      "Required": false\n    },\n    {\n      "Label": "Hazard Type",\n      "Type": "text",\n      "Name": "HazardType",\n      "Required": false\n    }\n  ]\n}',
+  tableColumnsOnly:
+    '[\n  {\n    "Label": "Name",\n    "Type": "text",\n    "Name": "Name",\n    "Required": false\n  },\n  {\n    "Label": "Hazard Type",\n    "Type": "text",\n    "Name": "HazardType",\n    "Required": false\n  }\n]',
 };
 
 function FieldEditor({ field, index, activityIndex, onChange, onRemove }) {
@@ -204,6 +206,9 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove }) {
               onChange={(e) => key("tableLayout", e.target.value)}
               placeholder={examples.tableLayout}
             />
+            <small>
+              Use either {"{"}"Columns": [ ... ]{"}"} or just [ ... ] with column objects.
+            </small>
           </label>
         ) : null}
       </div>
