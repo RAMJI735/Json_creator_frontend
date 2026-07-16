@@ -7,6 +7,7 @@ import FormulaBuilder from "./builders/FormulaBuilder";
 import RouteBuilder from "./builders/RouteBuilder";
 import TableLayoutEditor from "./builders/TableLayoutEditor";
 import FormPreview from "./FormPreview";
+import RouteFlowDiagram from "./RouteFlowDiagram";
 import ValidationReport from "./ValidationReport";
 import { validateWorkflow } from "../utils/workflowValidator";
 
@@ -1042,6 +1043,13 @@ export default function WorkflowBuilder() {
               </button>
               <button
                 type="button"
+                className={`output-tab ${jsonTab === "flow" ? "active" : ""}`}
+                onClick={() => setJsonTab("flow")}
+              >
+                Flow
+              </button>
+              <button
+                type="button"
                 className={`output-tab ${jsonTab === "preview" ? "active" : ""}`}
                 onClick={() => setJsonTab("preview")}
               >
@@ -1053,6 +1061,8 @@ export default function WorkflowBuilder() {
 
             {jsonTab === "validate" ? (
               <ValidationReport issues={validationIssues || []} />
+            ) : jsonTab === "flow" ? (
+              <RouteFlowDiagram formData={form} />
             ) : jsonTab === "preview" ? (
               <FormPreview formData={form} />
             ) : (
