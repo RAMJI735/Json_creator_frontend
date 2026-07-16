@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import ConditionBuilder from "./builders/ConditionBuilder";
+import OptionsBuilder from "./builders/OptionsBuilder";
+import FormulaBuilder from "./builders/FormulaBuilder";
+import RouteBuilder from "./builders/RouteBuilder";
+import TableLayoutEditor from "./builders/TableLayoutEditor";
+import FormPreview from "./FormPreview";
+import ValidationReport from "./ValidationReport";
+import { validateWorkflow } from "../utils/workflowValidator";
 
 const fieldTypes = [
   "text",
   "textarea",
   "email",
+  "number",
   "phone",
   "date",
   "radio",
@@ -21,6 +30,8 @@ const fieldTypes = [
   "file",
 ];
 
+const TYPES_WITH_OPTIONS = ["radio", "checkbox", "dropdown"];
+
 const createField = () => ({
   label: "",
   name: "",
@@ -30,6 +41,7 @@ const createField = () => ({
   placeholder: "",
   defaultValue: "",
   optionsText: "",
+  options: [],
   dbField: "",
   dbTable: "",
   matchedTemplateCode: "",
@@ -65,21 +77,10 @@ const createWorkflow = () => ({
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-const examples = {
-  conditions:
-    '[\n  {\n    "field": "permitType",\n    "operator": "EQUALS",\n    "value": "Commercial"\n  }\n]',
-  formulas:
-    '[\n  {\n    "value": "250",\n    "isOtherwise": false,\n    "conditions": [\n      {\n        "field": "squareFootage",\n        "operator": "GREATER_THAN",\n        "value": 500\n      }\n    ]\n  }\n]',
-  routes:
-    '[\n  {\n    "Name": "Review Route",\n    "ToActivity": "Reviewer Approval",\n    "RouteActivity": "Applicant Details",\n    "IsOtherwise": false,\n    "Conditions": [\n      {\n        "field": "permitType",\n        "operator": "EQUALS",\n        "value": "Commercial"\n      }\n    ]\n  }\n]',
-  tableLayout:
-    '{\n  "Columns": [\n    {\n      "Label": "Name",\n      "Type": "text",\n      "Name": "Name",\n      "Required": false\n    },\n    {\n      "Label": "Hazard Type",\n      "Type": "text",\n      "Name": "HazardType",\n      "Required": false\n    }\n  ]\n}',
-  tableColumnsOnly:
-    '[\n  {\n    "Label": "Name",\n    "Type": "text",\n    "Name": "Name",\n    "Required": false\n  },\n  {\n    "Label": "Hazard Type",\n    "Type": "text",\n    "Name": "HazardType",\n    "Required": false\n  }\n]',
-};
-
-function FieldEditor({ field, index, activityIndex, onChange, onRemove }) {
+function FieldEditor({ field, index, activityIndex, onChange, onRemove, fieldOptions = [] }) {
   const key = (name, value) => onChange(activityIndex, index, name, value);
+
+  const needsOptions = TYPES_WITH_OPTIONS.includes(field.type);
 
   return (
     <div className="card nested-card">
@@ -122,15 +123,19 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove }) {
           <input value={field.defaultValue} onChange={(e) => key("defaultValue", e.target.value)} />
         </label>
 
-        <label>
-          DB Field
-          <input value={field.dbField} onChange={(e) => key("dbField", e.target.value)} />
-        </label>
+        {field.type !== "table" && (
+          <>
+            <label>
+              DB Field
+              <input value={field.dbField} onChange={(e) => key("dbField", e.target.value)} />
+            </label>
 
-        <label>
-          DB Table
-          <input value={field.dbTable} onChange={(e) => key("dbTable", e.target.value)} />
-        </label>
+            <label>
+              DB Table
+              <input value={field.dbTable} onChange={(e) => key("dbTable", e.target.value)} />
+            </label>
+          </>
+        )}
 
         <label>
           Matched Template Code
@@ -159,59 +164,54 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove }) {
           Max Value
           <input value={field.maxValue} onChange={(e) => key("maxValue", e.target.value)} />
         </label>
-
-        {field.type !== "table" ? (
-          <label className="full-width">
-            Options (comma separated)
-            <input
-              value={field.optionsText}
-              onChange={(e) => key("optionsText", e.target.value)}
-              placeholder="Pending, Approved, Rejected"
-            />
-          </label>
-        ) : null}
-
-        <label className="full-width">
-          Conditionally Visible JSON
-          <textarea
-            value={field.conditionallyVisible}
-            onChange={(e) => key("conditionallyVisible", e.target.value)}
-            placeholder={examples.conditions}
-          />
-        </label>
-
-        <label className="full-width">
-          Conditionally Required JSON
-          <textarea
-            value={field.conditionallyRequired}
-            onChange={(e) => key("conditionallyRequired", e.target.value)}
-            placeholder={examples.conditions}
-          />
-        </label>
-
-        <label className="full-width">
-          Formula Outputs JSON
-          <textarea
-            value={field.formulaOutputs}
-            onChange={(e) => key("formulaOutputs", e.target.value)}
-            placeholder={examples.formulas}
-          />
-        </label>
-
-        {field.type === "table" ? (
-          <label className="full-width">
-            Table Layout JSON
-            <textarea
-              value={field.tableLayout}
-              onChange={(e) => key("tableLayout", e.target.value)}
-              placeholder={examples.tableLayout}
-            />
-            <small>
-              Use either {"{"}"Columns": [ ... ]{"}"} or just [ ... ] with column objects.
-            </small>
-          </label>
-        ) : null}
       </div>
+
+      {needsOptions && (
+        <OptionsBuilder
+          options={field.options}
+          onChange={(opts) => {
+            key("options", opts);
+            key(
+              "optionsText",
+              opts.map((o) => o.Label || o.Value).join(", ")
+            );
+          }}
+          label={`Options (${field.type})`}
+        />
+      )}
+
+      <div className="field-builders-grid">
+        <div className="field-builder-col">
+          <ConditionBuilder
+            conditions={field.conditionallyVisible}
+            onChange={(json) => key("conditionallyVisible", json)}
+            label="Conditionally Visible"
+            fieldOptions={fieldOptions}
+          />
+        </div>
+        <div className="field-builder-col">
+          <ConditionBuilder
+            conditions={field.conditionallyRequired}
+            onChange={(json) => key("conditionallyRequired", json)}
+            label="Conditionally Required"
+            fieldOptions={fieldOptions}
+          />
+        </div>
+      </div>
+
+      <FormulaBuilder
+        formulaOutputs={field.formulaOutputs}
+        onChange={(json) => key("formulaOutputs", json)}
+        label="Formula Outputs (calculated fields)"
+        fieldOptions={fieldOptions}
+      />
+
+      {field.type === "table" && (
+        <TableLayoutEditor
+          tableLayout={field.tableLayout}
+          onChange={(json) => key("tableLayout", json)}
+        />
+      )}
 
       <div className="toggle-row">
         <label className="check-label">
@@ -246,8 +246,12 @@ function ActivityEditor({
   onFieldRemove,
   onRemove,
   onMove,
+  activityNames,
 }) {
   const key = (name, value) => onChange(index, name, value);
+  const fieldOptions = activity.fields
+    .map((f) => f.name)
+    .filter(Boolean);
 
   return (
     <section className="card activity-card">
@@ -282,7 +286,7 @@ function ActivityEditor({
 
         <label>
           Type
-          <input value={activity.type} onChange={(e) => key("type", e.target.value)} />
+          <input value={activity.type} onChange={(e) => key("type", e.target.value)} placeholder="form, email, parcelsearch, etc." />
         </label>
 
         <label className="full-width">
@@ -293,15 +297,6 @@ function ActivityEditor({
         <label className="full-width">
           Help Text
           <textarea value={activity.helpText} onChange={(e) => key("helpText", e.target.value)} />
-        </label>
-
-        <label className="full-width">
-          Routes JSON
-          <textarea
-            value={activity.routes}
-            onChange={(e) => key("routes", e.target.value)}
-            placeholder={examples.routes}
-          />
         </label>
       </div>
 
@@ -314,6 +309,14 @@ function ActivityEditor({
         Required section
       </label>
 
+      <RouteBuilder
+        routes={activity.routes}
+        onChange={(json) => key("routes", json)}
+        activityNames={activityNames}
+        fieldOptions={fieldOptions}
+        label="Routes (navigation paths from this section)"
+      />
+
       <div className="stack">
         {activity.fields.map((field, fieldIndex) => (
           <FieldEditor
@@ -323,6 +326,7 @@ function ActivityEditor({
             activityIndex={index}
             onChange={onFieldChange}
             onRemove={onFieldRemove}
+            fieldOptions={fieldOptions}
           />
         ))}
       </div>
@@ -342,6 +346,28 @@ export default function WorkflowBuilder() {
   const [savedWorkflows, setSavedWorkflows] = useState([]);
   const [databaseConnected, setDatabaseConnected] = useState(false);
   const [listLoading, setListLoading] = useState(false);
+  const [jsonTab, setJsonTab] = useState("generated");
+  const [validationIssues, setValidationIssues] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ percent: 0, phase: "" });
+  const [importReport, setImportReport] = useState(null);
+  const toastTimer = useRef(null);
+  const fileInputRef = useRef(null);
+  const importAbortRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
+  };
 
   const loadWorkflows = async () => {
     setListLoading(true);
@@ -458,6 +484,282 @@ export default function WorkflowBuilder() {
     }));
   };
 
+  const loadExample = () => {
+    setForm({
+      ...createWorkflow(),
+      workflowDescription: "Apply for a Sign Permit (example)",
+      department: "Building",
+      applicationDescriptionTemplate: "${PARCEL_SEARCH_ADDRESS}|${OwnerName}|${ParcelID}",
+      activities: [
+        {
+          ...createActivity(),
+          activityName: "Parcel Search",
+          type: "parcelsearch",
+          description: "Search and select property parcel",
+          helpText: "You may search for your parcel by entering any of the following information",
+          fields: [],
+          routes: JSON.stringify([
+            {
+              Name: "Continue",
+              ToActivity: "Site Information",
+              Conditions: [],
+            },
+          ]),
+        },
+        {
+          ...createActivity(),
+          activityName: "Site Information",
+          description: "Property details",
+          fields: [
+            {
+              ...createField(),
+              label: "Site Address",
+              name: "SiteAddress",
+              type: "text",
+              required: true,
+              dbField: "SiteAddress",
+              dbTable: "application",
+            },
+            {
+              ...createField(),
+              label: "City",
+              name: "SiteCity",
+              type: "calculated",
+              allowEdit: true,
+              formulaOutputs: JSON.stringify([
+                { value: '"Huntington"', isOtherwise: true },
+              ]),
+            },
+          ],
+        },
+      ],
+    });
+    setResponse(null);
+    showToast("Example workflow loaded. Customize it or generate JSON.", "info");
+  };
+
+  const handleFileImport = (event) => {
+    const file = event.target.files?.[0];
+    if (!file || importing) return;
+    runImport(file);
+    event.target.value = "";
+  };
+
+  const cancelImport = () => {
+    importAbortRef.current = true;
+    showToast("Import cancelled.", "info");
+  };
+
+  const yieldToUI = () => new Promise((r) => setTimeout(r, 0));
+
+  const runImport = async (file) => {
+    if (!file.name.endsWith(".json")) {
+      showToast("Please select a .json file.", "error");
+      return;
+    }
+
+    importAbortRef.current = false;
+    let wasAborted = false;
+
+    setImporting(true);
+    setImportReport(null);
+    setImportProgress({ percent: 5, phase: "Reading file..." });
+
+    // Read file
+    const text = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result);
+      reader.onerror = () => reject(new Error("Error reading file."));
+      reader.readAsText(file);
+    }).catch(() => null);
+
+    if (!text) {
+      setImporting(false);
+      showToast("Could not read the file. Please try again.", "error");
+      return;
+    }
+
+    await yieldToUI();
+    setImportProgress({ percent: 20, phase: "Parsing JSON..." });
+    await yieldToUI();
+
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (parseError) {
+      setImporting(false);
+      showToast(`Invalid JSON: ${parseError.message}`, "error");
+      return;
+    }
+
+    await yieldToUI();
+    setImportProgress({ percent: 40, phase: "Validating structure..." });
+    await yieldToUI();
+
+    if (!json || typeof json !== "object" || Array.isArray(json)) {
+      setImporting(false);
+      showToast("Invalid: expected a workflow object (not an array).", "error");
+      return;
+    }
+
+    const hasWorkflowDesc = Boolean(json.WorkflowDescription || json.workflowDescription);
+    const hasActivities = Boolean(json.Activities || json.activities);
+
+    if (!hasWorkflowDesc && !hasActivities) {
+      setImporting(false);
+      showToast("Not a GeoPermit workflow. Expected 'WorkflowDescription' and 'Activities'.", "error");
+      return;
+    }
+
+    // Convert activities and load into form in small batches
+    // This prevents one massive setForm from freezing the UI
+    const rawActivities = json.Activities || json.activities || [];
+    const total = rawActivities.length;
+
+    // Pre-count totals for the report
+    const totalRawFields = rawActivities.reduce(
+      (sum, a) => sum + (Array.isArray(a.Fields || a.fields) ? (a.Fields || a.fields).length : 0),
+      0
+    );
+    const totalRawRoutes = rawActivities.reduce(
+      (sum, a) => sum + (Array.isArray(a.Routes || a.routes) ? (a.Routes || a.routes).length : 0),
+      0
+    );
+
+    // Set workflow metadata first
+    setForm({
+      ...createWorkflow(),
+      workflowDescription: json.WorkflowDescription || json.workflowDescription || "",
+      applicationDescriptionTemplate: json.ApplicationDescriptionTemplate || "",
+      department: json.Department || "",
+      version: Number(json.version) || 1,
+      isPublished: Boolean(json.isPublished || json.IsPublished),
+      saveToDatabase: false,
+      activities: [],
+    });
+    await yieldToUI();
+
+    const BATCH_SIZE = 3;
+    let fieldCount = 0;
+    let routeCount = 0;
+    let formulaCount = 0;
+    let conditionCount = 0;
+
+    for (let start = 0; start < total; start += BATCH_SIZE) {
+      // Check for abort before each batch
+      if (importAbortRef.current) {
+        wasAborted = true;
+        break;
+      }
+
+      const end = Math.min(start + BATCH_SIZE, total);
+      const batch = [];
+
+      for (let j = start; j < end; j++) {
+        // Quick abort check per-activity for responsive cancellation
+        if (importAbortRef.current) break;
+
+        const act = rawActivities[j];
+        const convertedAct = convertActivity(act);
+        batch.push(convertedAct);
+
+        // Count stats incrementally
+        fieldCount += convertedAct.fields.length;
+        try {
+          routeCount += JSON.parse(convertedAct.routes).length;
+        } catch {}
+
+        convertedAct.fields.forEach((f) => {
+          if (f.formulaOutputs !== "[]") formulaCount++;
+          try {
+            const vis = JSON.parse(f.conditionallyVisible);
+            const req = JSON.parse(f.conditionallyRequired);
+            conditionCount +=
+              (Array.isArray(vis) ? vis.length : 0) +
+              (Array.isArray(req) ? req.length : 0);
+          } catch {}
+        });
+      }
+
+      // Append this batch to the form — one small re-render per batch
+      setForm((prev) => ({
+        ...prev,
+        activities: [...prev.activities, ...batch],
+      }));
+
+      // Update progress: 60% → 100% as batches complete
+      const pct = total === 0 ? 100 : 60 + Math.round((end / total) * 40);
+      setImportProgress({
+        percent: Math.min(pct, 99),
+        phase: `Loading section ${end} of ${total}...`,
+      });
+
+      // Yield so React renders the batch before we continue
+      await yieldToUI();
+    }
+
+    if (wasAborted) {
+      // Reset form to clean state
+      setForm(createWorkflow());
+      setResponse(null);
+      setImporting(false);
+      setImportProgress({ percent: 0, phase: "" });
+      return;
+    }
+
+    setResponse(null);
+    await yieldToUI();
+
+    setImportProgress({ percent: 100, phase: "Import complete!" });
+
+    const report = {
+      workflowName: json.WorkflowDescription || json.workflowDescription || "Untitled",
+      activities: total,
+      fields: fieldCount,
+      routes: routeCount,
+      formulas: formulaCount,
+      conditions: conditionCount,
+      totalRawActivities: total,
+      totalRawFields,
+      totalRawRoutes,
+    };
+
+    setImportReport(report);
+
+    setTimeout(() => {
+      setImporting(false);
+      setImportProgress({ percent: 0, phase: "" });
+
+      showToast(
+        `Imported "${report.workflowName}" — ${report.activities} section${report.activities !== 1 ? "s" : ""}, ${report.fields} field${report.fields !== 1 ? "s" : ""}, ${report.routes} route${report.routes !== 1 ? "s" : ""}.`,
+        "success"
+      );
+    }, 600);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+
+    const file = e.dataTransfer?.files?.[0];
+    if (file && !importing) {
+      runImport(file);
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
@@ -479,6 +781,8 @@ export default function WorkflowBuilder() {
       }
 
       setResponse(payload.data);
+      setValidationIssues(null);
+      setJsonTab("generated");
       if (payload.saved) {
         loadWorkflows();
       }
@@ -491,9 +795,7 @@ export default function WorkflowBuilder() {
   };
 
   const downloadJson = () => {
-    if (!response) {
-      return;
-    }
+    if (!response) return;
 
     const blob = new Blob([JSON.stringify(response, null, 2)], {
       type: "application/json",
@@ -506,21 +808,107 @@ export default function WorkflowBuilder() {
     URL.revokeObjectURL(url);
   };
 
+  const activityNames = form.activities.map((a) => a.activityName).filter(Boolean);
+
   return (
-    <main className="page-shell">
+    <main
+      className={`page-shell${dragOver ? " drag-over" : ""}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <section className="hero">
         <p className="eyebrow">GeoPermit Builder</p>
-        <h1>Build sections and fields, then generate workflow JSON.</h1>
+        <h1>Build permit workflows visually, generate production-ready JSON.</h1>
         <p className="hero-copy">
-          Define each permit section as an activity, add fields, and send the structure to the backend
-          for Mongoose validation and JSON generation.
+          Define activities (sections), add fields with visual condition editors, route builders, and
+          formula designers — no raw JSON required.
         </p>
+        <p className="hero-hint">
+          Start fresh, load an example, or drag-and-drop an existing GeoPermit JSON file to edit it visually.
+        </p>
+        <div className="hero-actions">
+          <button type="button" className="secondary-button" onClick={loadExample}>
+            Load Example
+          </button>
+          <button type="button" className="secondary-button" onClick={() => fileInputRef.current?.click()}>
+            Import JSON
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: "none" }}
+            onChange={handleFileImport}
+          />
+        </div>
+
+        {importing && (
+          <div className="import-progress">
+            <div className="import-progress-header">
+              <span className="import-phase">{importProgress.phase}</span>
+              <span className="import-percent">{importProgress.percent}%</span>
+            </div>
+            <div className="progress-track">
+              <div
+                className="progress-fill"
+                style={{ width: `${importProgress.percent}%` }}
+              />
+            </div>
+            <div className="import-progress-footer">
+              <button
+                type="button"
+                className="cancel-import-button"
+                onClick={cancelImport}
+              >
+                Cancel Import
+              </button>
+            </div>
+          </div>
+        )}
+
+        {importReport && !importing && (
+          <div className="import-report">
+            <div className="import-report-header">
+              <span className="import-report-icon">✓</span>
+              <span className="import-report-title">Import Complete</span>
+            </div>
+            <div className="import-report-stats">
+              <div className="stat-item">
+                <span className="stat-value">{importReport.activities}</span>
+                <span className="stat-label">of {importReport.totalRawActivities} sections</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{importReport.fields}</span>
+                <span className="stat-label">of {importReport.totalRawFields} fields</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{importReport.routes}</span>
+                <span className="stat-label">of {importReport.totalRawRoutes} routes</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{importReport.formulas}</span>
+                <span className="stat-label">formula outputs</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-value">{importReport.conditions}</span>
+                <span className="stat-label">conditions</span>
+              </div>
+            </div>
+            <p className="import-report-name">
+              {importReport.workflowName}
+            </p>
+          </div>
+        )}
       </section>
 
       <div className="layout">
         <form className="panel" onSubmit={handleSubmit}>
           <div className="card">
-            <h2>Workflow Details</h2>
+            <div className="card-header-row">
+              <h2>Workflow Details</h2>
+              <span className="badge">{form.activities.length} section{form.activities.length !== 1 ? "s" : ""}</span>
+            </div>
             <div className="grid">
               <label>
                 Workflow Description
@@ -553,6 +941,8 @@ export default function WorkflowBuilder() {
                   onChange={(e) =>
                     updateWorkflow("applicationDescriptionTemplate", e.target.value)
                   }
+                  placeholder="${PARCEL_SEARCH_ADDRESS}|${OwnerName}|${ParcelID}"
+                  rows={2}
                 />
               </label>
             </div>
@@ -591,13 +981,24 @@ export default function WorkflowBuilder() {
                 onFieldRemove={removeField}
                 onRemove={removeActivity}
                 onMove={moveActivity}
+                activityNames={activityNames}
               />
             ))}
           </div>
 
           <div className="actions">
             <button type="button" className="secondary-button" onClick={addActivity}>
-              Add Section
+              + Add Section
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setValidationIssues(validateWorkflow(form));
+                setJsonTab("validate");
+              }}
+            >
+              Test
             </button>
             <button type="submit" className="primary-button" disabled={loading}>
               {loading ? "Generating..." : "Generate JSON"}
@@ -608,14 +1009,61 @@ export default function WorkflowBuilder() {
         <aside className="panel output-panel">
           <div className="card">
             <div className="row spread">
-              <h2>Generated JSON</h2>
+              <h2>Output</h2>
               <button type="button" className="ghost-button" onClick={downloadJson} disabled={!response}>
                 Download
               </button>
             </div>
 
+            <div className="output-tabs">
+              <button
+                type="button"
+                className={`output-tab ${jsonTab === "generated" ? "active" : ""}`}
+                onClick={() => setJsonTab("generated")}
+              >
+                Generated JSON
+              </button>
+              <button
+                type="button"
+                className={`output-tab ${jsonTab === "formdata" ? "active" : ""}`}
+                onClick={() => setJsonTab("formdata")}
+              >
+                Current Data
+              </button>
+              <button
+                type="button"
+                className={`output-tab ${jsonTab === "validate" ? "active" : ""}`}
+                onClick={() => {
+                  setJsonTab("validate");
+                  setValidationIssues(validateWorkflow(form));
+                }}
+              >
+                Validate
+              </button>
+              <button
+                type="button"
+                className={`output-tab ${jsonTab === "preview" ? "active" : ""}`}
+                onClick={() => setJsonTab("preview")}
+              >
+                Preview
+              </button>
+            </div>
+
             {error ? <p className="error-text">{error}</p> : null}
-            <pre>{response ? JSON.stringify(response, null, 2) : "Generated workflow JSON will appear here."}</pre>
+
+            {jsonTab === "validate" ? (
+              <ValidationReport issues={validationIssues || []} />
+            ) : jsonTab === "preview" ? (
+              <FormPreview formData={form} />
+            ) : (
+              <pre className="json-output">
+                {jsonTab === "generated"
+                  ? response
+                    ? JSON.stringify(response, null, 2)
+                    : "Click \"Generate JSON\" to build your workflow.\nOr click \"Load Example\" above to start with a sample."
+                  : JSON.stringify(form, null, 2)}
+              </pre>
+            )}
           </div>
 
           <div className="card">
@@ -650,6 +1098,97 @@ export default function WorkflowBuilder() {
           </div>
         </aside>
       </div>
+
+      {toast && (
+        <div className={`toast toast-${toast.type}`}>
+          <span className="toast-icon">
+            {toast.type === "success" && "✓"}
+            {toast.type === "error" && "✗"}
+            {toast.type === "info" && "ℹ"}
+          </span>
+          <span className="toast-message">{toast.message}</span>
+          <button type="button" className="toast-close" onClick={() => setToast(null)}>
+            ×
+          </button>
+        </div>
+      )}
+
+      {dragOver && (
+        <div className="drop-overlay">
+          <div className="drop-content">
+            <span className="drop-icon">📄</span>
+            <h2>Drop your GeoPermit JSON here</h2>
+            <p>File will be parsed and loaded into the visual editor</p>
+          </div>
+        </div>
+      )}
     </main>
   );
+}
+
+function convertCondition(c) {
+  return {
+    field: c.Field || c.field || "",
+    operator: c.Operator || c.operator || "IS",
+    value: c.Value ?? c.value ?? "",
+  };
+}
+
+function convertFormulaOutput(fo) {
+  return {
+    value: fo.Value ?? fo.value ?? "",
+    isOtherwise: Boolean(fo.IsOtherwise || fo.isOtherwise),
+    conditions: Array.isArray(fo.Conditions || fo.conditions)
+      ? (fo.Conditions || fo.conditions).map(convertCondition)
+      : [],
+  };
+}
+
+function convertField(f) {
+  return {
+    label: f.Label || "",
+    name: f.Name || "",
+    type: (f.Type || "text").toLowerCase(),
+    required: Boolean(f.Required),
+    allowEdit: f.AllowEdit !== false,
+    placeholder: f.Placeholder || "",
+    defaultValue: f.Content ?? "",
+    optionsText: (f.Options || []).map((o) => o.Label || o.Value).join(", "),
+    options: f.Options || [],
+    dbField: f.DBField || "",
+    dbTable: f.DBTable || "",
+    matchedTemplateCode: f.MatchedTemplateCode || "",
+    minLength: f.MinLength ?? "",
+    maxLength: f.MaxLength ?? "",
+    minValue: f.MinValue ?? "",
+    maxValue: f.MaxValue ?? "",
+    conditionallyVisible: JSON.stringify((f.ConditionallyVisible || []).map(convertCondition), null, 2),
+    conditionallyRequired: JSON.stringify((f.ConditionallyRequired || []).map(convertCondition), null, 2),
+    formulaOutputs: JSON.stringify((f.FormulaOutputs || []).map(convertFormulaOutput), null, 2),
+    tableLayout: JSON.stringify(f.TableLayout || { Columns: [] }, null, 2),
+  };
+}
+
+function convertRoute(route) {
+  return {
+    Name: route.Name || route.name || "",
+    ToActivity: route.ToActivity || route.toActivity || "",
+    RouteActivity: route.RouteActivity || route.routeActivity || "",
+    IsOtherwise: Boolean(route.IsOtherwise || route.isOtherwise),
+    Conditions: Array.isArray(route.Conditions || route.conditions)
+      ? (route.Conditions || route.conditions).map(convertCondition)
+      : [],
+  };
+}
+
+function convertActivity(act) {
+  return {
+    activityName: act.ActivityName || "",
+    type: act.Type || "form",
+    description: act.Description || "",
+    helpText: act.HelpText || "",
+    required: act.Required !== false,
+    routes: JSON.stringify((act.Routes || []).map(convertRoute), null, 2),
+    fields: (act.Fields || []).map((f) => convertField(f)),
+  };
 }
