@@ -85,9 +85,13 @@ export default function FormulaBuilder({ formulaOutputs = [], onChange, label = 
                   list={`formula-value-list-${uid}`}
                 />
                 <datalist id={`formula-value-list-${uid}`}>
-                  {fieldOptions.map((opt) => (
-                    <option key={opt} value={`\${${opt}}`} />
-                  ))}
+                  {fieldOptions.map((opt, idx) => {
+                    const name = typeof opt === "string" ? opt : opt.name;
+                    const label = typeof opt === "string" ? opt : opt.label || opt.name;
+                    const section = typeof opt === "string" ? "" : opt.section || "";
+                    const uniqueKey = section ? `${name}-${section}` : `${name}-${idx}`;
+                    return <option key={uniqueKey} value={`\${${name}}`} label={label} />;
+                  })}
                 </datalist>
               </label>
 

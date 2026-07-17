@@ -248,11 +248,9 @@ function ActivityEditor({
   onRemove,
   onMove,
   activityNames,
+  allFieldOptions = [],
 }) {
   const key = (name, value) => onChange(index, name, value);
-  const fieldOptions = activity.fields
-    .map((f) => f.name)
-    .filter(Boolean);
 
   return (
     <section className="card activity-card">
@@ -314,7 +312,7 @@ function ActivityEditor({
         routes={activity.routes}
         onChange={(json) => key("routes", json)}
         activityNames={activityNames}
-        fieldOptions={fieldOptions}
+        fieldOptions={allFieldOptions}
         label="Routes (navigation paths from this section)"
       />
 
@@ -327,7 +325,7 @@ function ActivityEditor({
             activityIndex={index}
             onChange={onFieldChange}
             onRemove={onFieldRemove}
-            fieldOptions={fieldOptions}
+            fieldOptions={allFieldOptions}
           />
         ))}
       </div>
@@ -811,6 +809,16 @@ export default function WorkflowBuilder() {
 
   const activityNames = form.activities.map((a) => a.activityName).filter(Boolean);
 
+  const allFieldOptions = form.activities.flatMap((activity, ai) =>
+    activity.fields
+      .filter((f) => f.name)
+      .map((f) => ({
+        name: f.name,
+        label: f.label || f.name,
+        section: activity.activityName || `Section ${ai + 1}`,
+      }))
+  );
+
   return (
     <main
       className={`page-shell${dragOver ? " drag-over" : ""}`}
@@ -983,6 +991,7 @@ export default function WorkflowBuilder() {
                 onRemove={removeActivity}
                 onMove={moveActivity}
                 activityNames={activityNames}
+                allFieldOptions={allFieldOptions}
               />
             ))}
           </div>

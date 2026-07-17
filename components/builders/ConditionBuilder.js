@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useEffect, useState } from "react";
 
 const OPERATORS = [
   "IS",
@@ -91,7 +91,6 @@ export default function ConditionBuilder({
     setExpandedIndex(expandedIndex === index ? null : index);
   };
 
-  const datalistId = `cond-field-list-${uid}`;
   const condCount = parsed.length;
 
   const formatConditionReadable = (cond) => {
@@ -204,18 +203,12 @@ export default function ConditionBuilder({
               {isExpanded && (
                 <div className="condition-editor">
                   <div className="cond-field-wrapper">
-                    <input
-                      className="cond-field"
-                      placeholder="Field name"
-                      list={datalistId}
+                    <FieldCombobox
                       value={cond.field || ""}
-                      onChange={(e) => changeCondition(i, "field", e.target.value)}
+                      onChange={(val) => changeCondition(i, "field", val)}
+                      options={fieldOptions}
+                      placeholder="Field name"
                     />
-                    <datalist id={datalistId}>
-                      {fieldOptions.map((opt) => (
-                        <option key={opt} value={opt} />
-                      ))}
-                    </datalist>
                   </div>
                   <select
                     className="cond-operator"
@@ -254,4 +247,183 @@ function safeParse(str) {
   } catch {
     return [];
   }
+}
+
+/* ─── Field Combobox ─── */
+
+function FieldCombobox({ value, onChange, options = [], placeholder }) {
+  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value || "");
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  // Sync input value when prop changes externally
+  useEffect(() => {
+    setInputValue(value || "");
+  }, [value]);
+
+  // Normalize options to objects with name/label
+  const items = (Array.isArray(options) ? options : []).map((opt) => {
+    if (typeof opt === "string") return { name: opt, label: opt, section: "" };
+    return { name: opt.name || "", label: opt.label || opt.name || "", section: opt.section || "" };
+  }).filter((opt) => opt.name);
+
+  // Filter options based on input
+  const filtered = items.filter((opt) => {
+    const q = inputValue.toLowerCase();
+    if (!q) return true;
+    return (
+      opt.name.toLowerCase().includes(q) ||
+      opt.label.toLowerCase().includes(q)
+    );
+  });
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target) &&
+        inputRef.current && !inputRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+        setActiveIndex(-1);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  // Reset active index when filtered list changes
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [filtered.length]);
+
+  const selectOption = (opt) => {
+    onChange(opt.name);
+    setInputValue(opt.name);
+    setOpen(false);
+    setActiveIndex(-1);
+    inputRef.current?.focus();
+  };
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setInputValue(val);
+    onChange(val);
+    if (!open) setOpen(true);
+    setActiveIndex(-1);
+  };
+
+  const handleKeyDown = (e) => {
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setOpen(true);
+        setActiveIndex(e.key === "ArrowDown" ? 0 : filtered.length - 1);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setActiveIndex((prev) => (prev < filtered.length - 1 ? prev + 1 : 0));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActiveIndex((prev) => (prev > 0 ? prev - 1 : filtered.length - 1));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (activeIndex >= 0 && activeIndex < filtered.length) {
+          selectOption(filtered[activeIndex]);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setOpen(false);
+        setActiveIndex(-1);
+        inputRef.current?.blur();
+        break;
+    }
+  };
+
+  // Scroll active option into view
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    const el = dropdownRef.current?.querySelector(`.combobox-option:nth-child(${activeIndex + 1})`);
+    el?.scrollIntoView?.({ block: "nearest" });
+  }, [activeIndex, open]);
+
+  return (
+    <div className={`field-combobox ${open ? "open" : ""}`}>
+      <input
+        ref={inputRef}
+        className="cond-field"
+        placeholder={placeholder}
+        value={inputValue}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        onFocus={() => {
+          if (!open) setOpen(true);
+        }}
+        aria-expanded={open}
+        aria-autocomplete="list"
+        role="combobox"
+      />
+      <button
+        type="button"
+        className="combobox-toggle"
+        onClick={() => {
+          setOpen(!open);
+          if (!open) setActiveIndex(-1);
+        }}
+        tabIndex={-1}
+        aria-label="Toggle field dropdown"
+      >
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+          <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="combobox-dropdown" ref={dropdownRef} role="listbox">
+          {filtered.map((opt, idx) => (
+            <div
+              key={`${opt.name}-${opt.section || idx}`}
+              className={`combobox-option ${idx === activeIndex ? "active" : ""} ${opt.name === inputValue ? "selected" : ""}`}
+              onClick={() => selectOption(opt)}
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setActiveIndex(idx)}
+              role="option"
+              aria-selected={idx === activeIndex}
+            >
+              <span className="combobox-option-label">{opt.label}</span>
+              <span className="combobox-option-name">
+                {opt.name}
+                {opt.section && <span className="combobox-option-section"> · {opt.section}</span>}
+              </span>
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div className="combobox-empty">
+              {inputValue ? (
+                <>
+                  "<strong>{inputValue}</strong>" — custom value
+                </>
+              ) : (
+                "No fields defined yet"
+              )}
+            </div>
+          )}
+          {items.length > 0 && filtered.length > 0 && (
+            <div className="combobox-footer">
+              {filtered.length} of {items.length} field{items.length !== 1 ? "s" : ""}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
