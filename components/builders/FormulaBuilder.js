@@ -89,8 +89,7 @@ export default function FormulaBuilder({ formulaOutputs = [], onChange, label = 
                     const name = typeof opt === "string" ? opt : opt.name;
                     const label = typeof opt === "string" ? opt : opt.label || opt.name;
                     const section = typeof opt === "string" ? "" : opt.section || "";
-                    const uniqueKey = section ? `${name}-${section}` : `${name}-${idx}`;
-                    return <option key={uniqueKey} value={`\${${name}}`} label={label} />;
+                    return <option key={`fo-${section || 'global'}-${name}-${idx}`} value={`\${${name}}`} label={label} />;
                   })}
                 </datalist>
               </label>

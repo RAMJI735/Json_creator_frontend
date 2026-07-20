@@ -391,7 +391,7 @@ function FieldCombobox({ value, onChange, options = [], placeholder }) {
         <div className="combobox-dropdown" ref={dropdownRef} role="listbox">
           {filtered.map((opt, idx) => (
             <div
-              key={`${opt.name}-${opt.section || idx}`}
+              key={`co-${opt.section || 'global'}-${opt.name}-${idx}`}
               className={`combobox-option ${idx === activeIndex ? "active" : ""} ${opt.name === inputValue ? "selected" : ""}`}
               onClick={() => selectOption(opt)}
               onMouseDown={(e) => e.preventDefault()}
