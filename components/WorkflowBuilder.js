@@ -54,6 +54,7 @@ const createField = () => ({
   conditionallyRequired: "[]",
   formulaOutputs: "[]",
   tableLayout: '{\n  "Columns": []\n}',
+  htmlContent: "",
 });
 
 const createActivity = () => ({
@@ -212,6 +213,46 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove, fieldOpt
           tableLayout={field.tableLayout}
           onChange={(json) => key("tableLayout", json)}
         />
+      )}
+
+      {field.type === "formattedtext" && (
+        <div className="html-editor">
+          <label className="html-editor-label">
+            HTML Content
+            <span className="html-editor-hint">Raw HTML for rich text display</span>
+          </label>
+          <div className="html-editor-tabs">
+            <button
+              type="button"
+              className={`html-tab ${field._htmlTab !== "preview" ? "active" : ""}`}
+              onClick={() => key("_htmlTab", "edit")}
+            >
+              Edit HTML
+            </button>
+            <button
+              type="button"
+              className={`html-tab ${field._htmlTab === "preview" ? "active" : ""}`}
+              onClick={() => key("_htmlTab", "preview")}
+            >
+              Preview
+            </button>
+          </div>
+          {field._htmlTab === "preview" ? (
+            <div
+              className="html-content-preview"
+              dangerouslySetInnerHTML={{ __html: field.htmlContent || "<em>No HTML content yet.</em>" }}
+            />
+          ) : (
+            <textarea
+              className="html-textarea"
+              value={field.htmlContent}
+              onChange={(e) => key("htmlContent", e.target.value)}
+              placeholder={'<p>Enter HTML content here...</p>'}
+              rows={6}
+              spellCheck={false}
+            />
+          )}
+        </div>
       )}
 
       <div className="toggle-row">
@@ -528,6 +569,15 @@ export default function WorkflowBuilder() {
               formulaOutputs: JSON.stringify([
                 { value: '"Huntington"', isOtherwise: true },
               ]),
+            },
+            {
+              ...createField(),
+              label: "Owner Notice",
+              name: "OwnerText",
+              type: "formattedtext",
+              htmlContent:
+                '<p>The owner/Licensee assumes responsibility for compliance with the <strong>state building code</strong> and all other applicable codes.</p><p>Failure to comply may result in <em>permits being revoked</em> and additional penalties.</p>',
+              matchedTemplateCode: "OwnerText",
             },
           ],
         },
@@ -1185,6 +1235,8 @@ function convertField(f) {
     conditionallyRequired: JSON.stringify((f.ConditionallyRequired || []).map(convertCondition), null, 2),
     formulaOutputs: JSON.stringify((f.FormulaOutputs || []).map(convertFormulaOutput), null, 2),
     tableLayout: JSON.stringify(f.TableLayout || { Columns: [] }, null, 2),
+    htmlContent: f.HTMLContent || f.htmlContent || "",
+    _htmlTab: "edit",
   };
 }
 

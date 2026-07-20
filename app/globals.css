@@ -3555,3 +3555,126 @@ pre {
     color: #e3e8e0;
   }
 }
+
+/* ─── HTML Editor ─── */
+
+.html-editor {
+  margin-top: 0.85rem;
+  padding: 0.85rem;
+  border-radius: var(--radius);
+  background: rgba(31, 42, 31, 0.03);
+  border: 1px solid rgba(31, 42, 31, 0.06);
+}
+
+.html-editor-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.html-editor-hint {
+  font-size: 0.72rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.html-editor-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  background: rgba(31, 42, 31, 0.04);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem;
+}
+
+.html-tab {
+  flex: 1;
+  border: 0;
+  cursor: pointer;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--muted);
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.html-tab.active {
+  background: #fff;
+  color: var(--accent-strong);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.html-tab:hover:not(.active) {
+  color: var(--ink);
+}
+
+.html-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: #1a1f1a;
+  color: #d3fbe5;
+  font-family: "Courier New", "Consolas", monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.html-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+}
+
+.html-content-preview {
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  min-height: 80px;
+}
+
+.html-content-preview p {
+  margin: 0 0 0.5rem;
+}
+
+.html-content-preview p:last-child {
+  margin-bottom: 0;
+}
+
+.preview-html-content {
+  padding: 0.55rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(15, 118, 110, 0.04);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.preview-html-content p {
+  margin: 0 0 0.4rem;
+}
+
+.preview-html-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* ─── End HTML Editor ─── */

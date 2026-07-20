@@ -121,6 +121,13 @@ function FieldPreview({ field, index }) {
         </div>
       )}
 
+      {field.type === "formattedtext" && (
+        <div
+          className="preview-html-content"
+          dangerouslySetInnerHTML={{ __html: field.htmlContent || field.defaultValue || "<em>No content</em>" }}
+        />
+      )}
+
       {field.type === "file" && (
         <div className="preview-input preview-file">Choose file...</div>
       )}
