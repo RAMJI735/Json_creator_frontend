@@ -671,6 +671,8 @@ function ActivityEditor({
               suggestions={variableSuggestions}
             />
 
+
+
             <EmailRecipientInput
               value={activity.roleRecipients}
               onChange={(v) => key("roleRecipients", v)}
