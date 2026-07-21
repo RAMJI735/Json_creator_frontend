@@ -55,10 +55,6 @@ const createField = () => ({
   conditionallyRequired: "[]",
   formulaOutputs: "[]",
   tableLayout: '{\n  "Columns": []\n}',
-  htmlContent: "",
-  contractorTypes: [],
-  allowNotListedOption: false,
-  allowRegisterRenewOption: false,
 });
 
 const createActivity = () => ({
@@ -315,7 +311,7 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove, fieldOpt
               <textarea
                 ref={htmlTextareaRef}
                 className="html-textarea"
-                value={field.htmlContent}
+                value={field.htmlContent || ""}
                 onChange={(e) => key("htmlContent", e.target.value)}
                 placeholder={'<p>Enter HTML content here...</p>'}
                 rows={6}
@@ -603,7 +599,7 @@ function ActivityEditor({
             <label className="full-width">
               Subject
               <input
-                value={activity.subject}
+                value={activity.subject || ""}
                 onChange={(e) => key("subject", e.target.value)}
                 placeholder="Enter email subject line"
               />
@@ -637,7 +633,7 @@ function ActivityEditor({
                 <textarea
                   ref={bodyTextareaRef}
                   className="email-body-textarea"
-                  value={activity.body}
+                  value={activity.body || ""}
                   onChange={(e) => key("body", e.target.value)}
                   placeholder={'<p>Dear ${OwnerName},</p><br/><p>...</p>'}
                   rows={8}
@@ -684,7 +680,7 @@ function ActivityEditor({
             <label className="full-width">
               Email Footer Name
               <input
-                value={activity.emailFooterName}
+                value={activity.emailFooterName || ""}
                 onChange={(e) => key("emailFooterName", e.target.value)}
                 placeholder="e.g. Building Department Footer"
               />
@@ -1579,12 +1575,23 @@ function convertField(f) {
     conditionallyRequired: JSON.stringify((f.ConditionallyRequired || []).map(convertCondition), null, 2),
     formulaOutputs: JSON.stringify((f.FormulaOutputs || []).map(convertFormulaOutput), null, 2),
     tableLayout: JSON.stringify(f.TableLayout || { Columns: [] }, null, 2),
-    htmlContent: f.HTMLContent || f.htmlContent || "",
-    contractorTypes: f.ContractorTypes || f.contractorTypes || [],
-    allowNotListedOption: f.AllowNotListedOption ?? f.allowNotListedOption ?? false,
-    allowRegisterRenewOption: f.AllowRegisterRenewOption ?? f.allowRegisterRenewOption ?? false,
-    _htmlTab: "edit",
   };
+
+  const fieldType = (f.Type || "text").toLowerCase();
+
+  // Only include type-specific fields for matching types
+  if (fieldType === "formattedtext") {
+    result.htmlContent = f.HTMLContent || f.htmlContent || "";
+    result._htmlTab = "edit";
+  }
+
+  if (fieldType === "select-contractor") {
+    result.contractorTypes = f.ContractorTypes || f.contractorTypes || [];
+    result.allowNotListedOption = f.AllowNotListedOption ?? f.allowNotListedOption ?? false;
+    result.allowRegisterRenewOption = f.AllowRegisterRenewOption ?? f.allowRegisterRenewOption ?? false;
+  }
+
+  return result;
 }
 
 function convertRoute(route) {
