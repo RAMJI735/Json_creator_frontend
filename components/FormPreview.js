@@ -184,7 +184,88 @@ function FieldPreview({ field, index }) {
   );
 }
 
+function safeParseStringArray(value) {
+  if (Array.isArray(value)) return value;
+  try {
+    const p = JSON.parse(value);
+    return Array.isArray(p) ? p : [];
+  } catch {
+    return [];
+  }
+}
+
+function EmailPreview({ activity }) {
+  const toList = safeParseStringArray(activity.to);
+  const ccList = safeParseStringArray(activity.cc);
+  const bccList = safeParseStringArray(activity.bcc);
+
+  return (
+    <div className="preview-email-card">
+      <div className="preview-email-header">
+        <span className="preview-email-icon">✉</span>
+        <div className="preview-email-info">
+          <strong>Email: {activity.subject || "(No subject)"}</strong>
+          {activity.emailFooterName && (
+            <span className="preview-email-footer-label">Footer: {activity.emailFooterName}</span>
+          )}
+        </div>
+      </div>
+      <div className="preview-email-details">
+        <div className="preview-email-row">
+          <span className="preview-email-tag">To</span>
+          <span className="preview-email-value">
+            {toList.length > 0 ? toList.join(", ") : "—"}
+          </span>
+        </div>
+        {ccList.length > 0 && (
+          <div className="preview-email-row">
+            <span className="preview-email-tag">CC</span>
+            <span className="preview-email-value">{ccList.join(", ")}</span>
+          </div>
+        )}
+        {bccList.length > 0 && (
+          <div className="preview-email-row">
+            <span className="preview-email-tag">BCC</span>
+            <span className="preview-email-value">{bccList.join(", ")}</span>
+          </div>
+        )}
+      </div>
+      {activity.body && (
+        <div className="preview-email-body-preview">
+          <details>
+            <summary className="preview-email-body-toggle">Preview Body</summary>
+            <div
+              className="preview-email-body-content"
+              dangerouslySetInnerHTML={{ __html: activity.body }}
+            />
+          </details>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PreviewStepper({ activity }) {
+  if (activity.type === "email") {
+    return (
+      <div className="preview-activity-card">
+        <div className="preview-activity-header">
+          <div className="preview-activity-step">
+            <span className="preview-step-number">{activity._stepNumber}</span>
+            <div className="preview-activity-info">
+              <strong>{activity.activityName || "Untitled Section"}</strong>
+              <span className="preview-activity-type">{activity.type}</span>
+            </div>
+          </div>
+          {activity.description && (
+            <p className="preview-activity-desc">{activity.description}</p>
+          )}
+        </div>
+        <EmailPreview activity={activity} />
+      </div>
+    );
+  }
+
   return (
     <div className="preview-activity-card">
       <div className="preview-activity-header">

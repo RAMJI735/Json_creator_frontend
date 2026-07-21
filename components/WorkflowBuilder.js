@@ -69,6 +69,14 @@ const createActivity = () => ({
   required: true,
   routes: "[]",
   fields: [createField()],
+  // Email activity fields
+  roleRecipients: "[]",
+  to: "[]",
+  cc: "[]",
+  bcc: "[]",
+  subject: "",
+  body: "",
+  emailFooterName: "",
 });
 
 const createWorkflow = () => ({
@@ -411,6 +419,79 @@ function ActivityEditor({
         />
         Required section
       </label>
+
+      {activity.type === "email" && (
+        <div className="email-activity-editor">
+          <h4 className="email-editor-heading">✉ Email Settings</h4>
+
+          <div className="email-field-grid">
+            <label className="full-width">
+              Subject
+              <input
+                value={activity.subject}
+                onChange={(e) => key("subject", e.target.value)}
+                placeholder="Enter email subject line"
+              />
+            </label>
+
+            <label className="full-width">
+              Body (HTML)
+              <textarea
+                className="email-body-textarea"
+                value={activity.body}
+                onChange={(e) => key("body", e.target.value)}
+                placeholder={'<p>Dear ${OwnerName},</p><br/><p>...</p>'}
+                rows={8}
+              />
+            </label>
+
+            <label>
+              To (JSON array)
+              <input
+                value={activity.to}
+                onChange={(e) => key("to", e.target.value)}
+                placeholder={'["${AppEmail}", "${OwnerEmail}"]'}
+              />
+            </label>
+
+            <label>
+              CC (JSON array)
+              <input
+                value={activity.cc}
+                onChange={(e) => key("cc", e.target.value)}
+                placeholder="[]"
+              />
+            </label>
+
+            <label>
+              BCC (JSON array)
+              <input
+                value={activity.bcc}
+                onChange={(e) => key("bcc", e.target.value)}
+                placeholder="[]"
+              />
+            </label>
+
+            <label>
+              Role Recipients (JSON array)
+              <input
+                value={activity.roleRecipients}
+                onChange={(e) => key("roleRecipients", e.target.value)}
+                placeholder="[]"
+              />
+            </label>
+
+            <label>
+              Email Footer Name
+              <input
+                value={activity.emailFooterName}
+                onChange={(e) => key("emailFooterName", e.target.value)}
+                placeholder="e.g. Building Department Footer"
+              />
+            </label>
+          </div>
+        </div>
+      )}
 
       <RouteBuilder
         routes={activity.routes}
@@ -1327,5 +1408,13 @@ function convertActivity(act) {
     required: act.Required !== false,
     routes: JSON.stringify((act.Routes || []).map(convertRoute), null, 2),
     fields: (act.Fields || []).map((f) => convertField(f)),
+    // Email activity properties
+    roleRecipients: JSON.stringify(act.RoleRecipients || [], null, 2),
+    to: JSON.stringify(act.To || [], null, 2),
+    cc: JSON.stringify(act.CC || [], null, 2),
+    bcc: JSON.stringify(act.BCC || [], null, 2),
+    subject: act.Subject || "",
+    body: act.Body || "",
+    emailFooterName: act.EmailFooterName || "",
   };
 }
