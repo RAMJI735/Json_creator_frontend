@@ -349,6 +349,150 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove, fieldOpt
   );
 }
 
+function safeParseArray(value) {
+  if (Array.isArray(value)) return value;
+  try {
+    const p = JSON.parse(value);
+    return Array.isArray(p) ? p : [];
+  } catch {
+    return [];
+  }
+}
+
+function EmailRecipientInput({ value, onChange, label, placeholder, hint, suggestions = [] }) {
+  const [inputValue, setInputValue] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIdx, setActiveSuggestionIdx] = useState(-1);
+  const wrapperRef = useRef(null);
+  const items = safeParseArray(value);
+
+  // Filter suggestions based on input, excluding already-added items
+  const filteredSuggestions = suggestions.filter(
+    (s) =>
+      s.toLowerCase().includes(inputValue.toLowerCase()) &&
+      !items.includes(s)
+  );
+
+  const addItem = (item) => {
+    const trimmed = (item || inputValue).trim();
+    if (!trimmed) return;
+    const updated = [...items, trimmed];
+    onChange(JSON.stringify(updated));
+    setInputValue("");
+    setShowSuggestions(false);
+    setActiveSuggestionIdx(-1);
+  };
+
+  const removeItem = (index) => {
+    const updated = items.filter((_, i) => i !== index);
+    onChange(JSON.stringify(updated));
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeSuggestionIdx >= 0 && activeSuggestionIdx < filteredSuggestions.length) {
+        addItem(filteredSuggestions[activeSuggestionIdx]);
+      } else {
+        addItem();
+      }
+    }
+    if (e.key === "Backspace" && !inputValue && items.length > 0) {
+      removeItem(items.length - 1);
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSuggestionIdx((prev) =>
+        prev < filteredSuggestions.length - 1 ? prev + 1 : prev
+      );
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSuggestionIdx((prev) => (prev > 0 ? prev - 1 : -1));
+    }
+    if (e.key === "Escape") {
+      setShowSuggestions(false);
+      setActiveSuggestionIdx(-1);
+    }
+  };
+
+  const handleFocus = () => {
+    setShowSuggestions(filteredSuggestions.length > 0);
+  };
+
+  const handleBlur = () => {
+    // Delay so click on suggestion registers before hiding
+    setTimeout(() => {
+      setShowSuggestions(false);
+      setActiveSuggestionIdx(-1);
+    }, 180);
+  };
+
+  const handleInputChange = (e) => {
+    setInputValue(e.target.value);
+    setShowSuggestions(true);
+    setActiveSuggestionIdx(-1);
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    addItem(suggestion);
+  };
+
+  return (
+    <label className="email-recipient-label">
+      <div className="email-recipient-header">
+        <span>{label}</span>
+        {hint && <span className="email-recipient-hint">{hint}</span>}
+      </div>
+      <div className="email-recipient-input-wrap" ref={wrapperRef}>
+        <div className="email-recipient-chips">
+          {items.map((item, i) => (
+            <span key={i} className="email-recipient-chip">
+              <span className="email-recipient-chip-text">{item}</span>
+              <button
+                type="button"
+                className="email-recipient-chip-remove"
+                onClick={() => removeItem(i)}
+                title="Remove"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <input
+            className="email-recipient-input"
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            placeholder={items.length === 0 ? placeholder : "Type or pick from list..."}
+          />
+        </div>
+        {showSuggestions && filteredSuggestions.length > 0 && (
+          <div className="email-recipient-suggestions">
+            {filteredSuggestions.map((s, i) => (
+              <button
+                key={s}
+                type="button"
+                className={`email-recipient-suggestion ${i === activeSuggestionIdx ? "active" : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleSuggestionClick(s);
+                }}
+              >
+                <span className="email-suggestion-var">{'${'}</span>
+                <span>{s}</span>
+                <span className="email-suggestion-close">{'}'}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </label>
+  );
+}
+
 function ActivityEditor({
   activity,
   index,
@@ -363,6 +507,34 @@ function ActivityEditor({
   allFieldOptions = [],
 }) {
   const key = (name, value) => onChange(index, name, value);
+
+  // Build variable suggestions (plain field names) for email recipient dropdowns
+  const variableSuggestions = allFieldOptions
+    .map((opt) => {
+      const name = typeof opt === "string" ? opt : opt.name;
+      return name;
+    })
+    .filter(Boolean);
+  const bodyTextareaRef = useRef(null);
+
+  const insertBodyVariable = (fieldName) => {
+    const textarea = bodyTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const variable = `\${${fieldName}}`;
+    const current = activity.body || "";
+    const newValue = current.substring(0, start) + variable + current.substring(end);
+
+    key("body", newValue);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const newPos = start + variable.length;
+      textarea.setSelectionRange(newPos, newPos);
+    });
+  };
 
   return (
     <section className="card activity-card">
@@ -397,7 +569,10 @@ function ActivityEditor({
 
         <label>
           Type
-          <input value={activity.type} onChange={(e) => key("type", e.target.value)} placeholder="form, email, parcelsearch, etc." />
+          <select value={activity.type} onChange={(e) => key("type", e.target.value)}>
+            <option value="form">form</option>
+            <option value="email">email</option>
+          </select>
         </label>
 
         <label className="full-width">
@@ -436,52 +611,75 @@ function ActivityEditor({
 
             <label className="full-width">
               Body (HTML)
-              <textarea
-                className="email-body-textarea"
-                value={activity.body}
-                onChange={(e) => key("body", e.target.value)}
-                placeholder={'<p>Dear ${OwnerName},</p><br/><p>...</p>'}
-                rows={8}
-              />
+              <div className="email-body-editor">
+                {allFieldOptions.length > 0 && (
+                  <div className="email-variable-picker">
+                    <span className="html-variable-label">Insert Variable:</span>
+                    <div className="html-variable-chips">
+                      {allFieldOptions.map((opt, idx) => {
+                        const name = typeof opt === "string" ? opt : opt.name;
+                        const label = typeof opt === "string" ? opt : opt.label || opt.name;
+                        return (
+                          <button
+                            key={`evc-${name}-${idx}`}
+                            type="button"
+                            className="html-variable-chip"
+                            onClick={() => insertBodyVariable(name)}
+                            title={`Insert \${${name}} — ${label}`}
+                          >
+                            {'${'}{name}{'}'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                <textarea
+                  ref={bodyTextareaRef}
+                  className="email-body-textarea"
+                  value={activity.body}
+                  onChange={(e) => key("body", e.target.value)}
+                  placeholder={'<p>Dear ${OwnerName},</p><br/><p>...</p>'}
+                  rows={8}
+                  spellCheck={false}
+                />
+              </div>
             </label>
 
-            <label>
-              To (JSON array)
-              <input
-                value={activity.to}
-                onChange={(e) => key("to", e.target.value)}
-                placeholder={'["${AppEmail}", "${OwnerEmail}"]'}
-              />
-            </label>
+            <EmailRecipientInput
+              value={activity.to}
+              onChange={(v) => key("to", v)}
+              label="To (Recipients)"
+              placeholder={'e.g. ${OwnerEmail} or email@example.com'}
+              hint="Select from variables below or type custom"
+              suggestions={variableSuggestions}
+            />
 
-            <label>
-              CC (JSON array)
-              <input
-                value={activity.cc}
-                onChange={(e) => key("cc", e.target.value)}
-                placeholder="[]"
-              />
-            </label>
+            <EmailRecipientInput
+              value={activity.cc}
+              onChange={(v) => key("cc", v)}
+              label="CC (Carbon Copy)"
+              placeholder="Add CC recipient..."
+              suggestions={variableSuggestions}
+            />
 
-            <label>
-              BCC (JSON array)
-              <input
-                value={activity.bcc}
-                onChange={(e) => key("bcc", e.target.value)}
-                placeholder="[]"
-              />
-            </label>
+            <EmailRecipientInput
+              value={activity.bcc}
+              onChange={(v) => key("bcc", v)}
+              label="BCC (Blind Carbon Copy)"
+              placeholder="Add BCC recipient..."
+              suggestions={variableSuggestions}
+            />
 
-            <label>
-              Role Recipients (JSON array)
-              <input
-                value={activity.roleRecipients}
-                onChange={(e) => key("roleRecipients", e.target.value)}
-                placeholder="[]"
-              />
-            </label>
+            <EmailRecipientInput
+              value={activity.roleRecipients}
+              onChange={(v) => key("roleRecipients", v)}
+              label="Role Recipients"
+              placeholder="Add role..."
+              suggestions={variableSuggestions}
+            />
 
-            <label>
+            <label className="full-width">
               Email Footer Name
               <input
                 value={activity.emailFooterName}

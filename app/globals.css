@@ -51,6 +51,13 @@ select {
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
+/* Ensure select dropdown options are visible */
+select option {
+  background: #fff;
+  color: var(--ink);
+  padding: 0.4rem 0.6rem;
+}
+
 input:focus,
 textarea:focus,
 select:focus {
@@ -4037,4 +4044,207 @@ pre {
 
 .preview-email-body-content p:last-child {
   margin-bottom: 0;
+}
+
+/* ─── Email Recipient Input (Tag/Chip UX) ─── */
+
+.email-recipient-label {
+  display: block;
+}
+
+.email-recipient-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.email-recipient-hint {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.email-recipient-input-wrap {
+  width: 100%;
+  margin-top: 0.2rem;
+}
+
+.email-recipient-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: #fff;
+  min-height: 42px;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+  cursor: text;
+}
+
+.email-recipient-chips:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.email-recipient-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  font-size: 0.8rem;
+  color: #1d4ed8;
+  animation: chip-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.email-recipient-chip-text {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email-recipient-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(37, 99, 235, 0.6);
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.email-recipient-chip-remove:hover {
+  background: rgba(37, 99, 235, 0.15);
+  color: #1d4ed8;
+}
+
+.email-recipient-input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  margin: 0;
+  padding: 0.2rem 0.25rem;
+  font-size: 0.82rem;
+  background: transparent;
+  color: var(--ink);
+}
+
+.email-recipient-input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* ─── Email Recipient Suggestions Dropdown ─── */
+
+.email-recipient-input-wrap {
+  position: relative;
+}
+
+.email-recipient-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(31, 42, 31, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 0.3rem;
+  animation: fade-in 120ms ease;
+}
+
+.email-recipient-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: 0;
+  cursor: pointer;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: #1f2a1f;
+  font-size: 0.82rem;
+  text-align: left;
+  transition: background 120ms ease;
+  font-family: "Courier New", monospace;
+  font-weight: 500;
+}
+
+.email-recipient-suggestion:hover,
+.email-recipient-suggestion.active {
+  background: #eef2ee;
+}
+
+.email-recipient-suggestion.active {
+  background: #e2e8e2;
+  outline: 1px solid rgba(15, 118, 110, 0.2);
+}
+
+.email-suggestion-var {
+  flex-shrink: 0;
+  color: #0f766e;
+  font-weight: 700;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.email-suggestion-close {
+  flex-shrink: 0;
+  color: #0f766e;
+  font-weight: 700;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+/* ─── Email Body Editor with Variable Picker ─── */
+
+.email-body-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.email-body-textarea {
+  min-height: 160px;
+  font-family: "Courier New", monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.email-variable-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 }
