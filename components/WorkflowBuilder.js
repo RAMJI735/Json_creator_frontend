@@ -136,7 +136,36 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove, fieldOpt
 
         <label>
           Type
-          <select value={field.type} onChange={(e) => key("type", e.target.value)}>
+          <select
+            value={field.type}
+            onChange={(e) => {
+              const newType = e.target.value;
+              const oldType = field.type;
+              key("type", newType);
+              // When changing away from formattedtext, clean up stale HTML fields
+              if (oldType === "formattedtext" && newType !== "formattedtext") {
+                key("htmlContent", undefined);
+                key("_htmlTab", undefined);
+              }
+              // When changing away from select-contractor, clean up stale contractor fields
+              if (oldType === "select-contractor" && newType !== "select-contractor") {
+                key("contractorTypes", undefined);
+                key("allowNotListedOption", undefined);
+                key("allowRegisterRenewOption", undefined);
+              }
+              // When changing TO select-contractor, initialize contractor fields
+              if (newType === "select-contractor" && oldType !== "select-contractor") {
+                key("contractorTypes", []);
+                key("allowNotListedOption", false);
+                key("allowRegisterRenewOption", false);
+              }
+              // When changing TO formattedtext, initialize HTML fields
+              if (newType === "formattedtext" && oldType !== "formattedtext") {
+                key("htmlContent", "");
+                key("_htmlTab", "edit");
+              }
+            }}
+          >
             {fieldTypes.map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -1554,10 +1583,12 @@ function convertFormulaOutput(fo) {
 }
 
 function convertField(f) {
-  return {
+  const fieldType = (f.Type || "text").toLowerCase();
+
+  const result = {
     label: f.Label || "",
     name: f.Name || "",
-    type: (f.Type || "text").toLowerCase(),
+    type: fieldType,
     required: Boolean(f.Required),
     allowEdit: f.AllowEdit !== false,
     placeholder: f.Placeholder || "",
@@ -1576,8 +1607,6 @@ function convertField(f) {
     formulaOutputs: JSON.stringify((f.FormulaOutputs || []).map(convertFormulaOutput), null, 2),
     tableLayout: JSON.stringify(f.TableLayout || { Columns: [] }, null, 2),
   };
-
-  const fieldType = (f.Type || "text").toLowerCase();
 
   // Only include type-specific fields for matching types
   if (fieldType === "formattedtext") {
