@@ -140,6 +140,37 @@ function FieldPreview({ field, index }) {
         <div className="preview-input preview-parcelsearch">🔍 Search parcel...</div>
       )}
 
+      {field.type === "select-contractor" && (
+        <div className="preview-contractor-container">
+          <div className="preview-input preview-contractor">
+            <span className="preview-contractor-icon">👥</span>
+            <span className="preview-contractor-text">
+              {field.contractorTypes && field.contractorTypes.length > 0
+                ? `Select contractor (${field.contractorTypes.length} types available)`
+                : "Select contractor..."}
+            </span>
+            <span className="preview-dropdown-arrow">▼</span>
+          </div>
+          {field.contractorTypes && field.contractorTypes.length > 0 && (
+            <div className="preview-contractor-types">
+              {field.contractorTypes.map((type, ti) => (
+                <span key={ti} className="preview-contractor-type-chip">
+                  {type}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="preview-contractor-options">
+            {field.allowNotListedOption && (
+              <span className="preview-contractor-option-badge">+ Not Listed</span>
+            )}
+            {field.allowRegisterRenewOption && (
+              <span className="preview-contractor-option-badge">↻ Register/Renew</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {isConditional && (
         <div className="preview-conditional-badge">
           Conditional ({visConds.length} condition{visConds.length !== 1 ? "s" : ""})

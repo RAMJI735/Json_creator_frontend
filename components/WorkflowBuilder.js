@@ -6,6 +6,7 @@ import OptionsBuilder from "./builders/OptionsBuilder";
 import FormulaBuilder from "./builders/FormulaBuilder";
 import RouteBuilder from "./builders/RouteBuilder";
 import TableLayoutEditor from "./builders/TableLayoutEditor";
+import ContractorSelectionBuilder from "./builders/ContractorSelectionBuilder";
 import FormPreview from "./FormPreview";
 import RouteFlowDiagram from "./RouteFlowDiagram";
 import ValidationReport from "./ValidationReport";
@@ -55,6 +56,9 @@ const createField = () => ({
   formulaOutputs: "[]",
   tableLayout: '{\n  "Columns": []\n}',
   htmlContent: "",
+  contractorTypes: [],
+  allowNotListedOption: false,
+  allowRegisterRenewOption: false,
 });
 
 const createActivity = () => ({
@@ -81,8 +85,30 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 function FieldEditor({ field, index, activityIndex, onChange, onRemove, fieldOptions = [] }) {
   const key = (name, value) => onChange(activityIndex, index, name, value);
+  const htmlTextareaRef = useRef(null);
 
   const needsOptions = TYPES_WITH_OPTIONS.includes(field.type);
+  const isContractorType = field.type === "select-contractor";
+
+  const insertFieldVariable = (fieldName) => {
+    const textarea = htmlTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const variable = `\${${fieldName}}`;
+    const current = field.htmlContent || "";
+    const newValue = current.substring(0, start) + variable + current.substring(end);
+
+    key("htmlContent", newValue);
+
+    // Restore cursor position right after the inserted variable
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const newPos = start + variable.length;
+      textarea.setSelectionRange(newPos, newPos);
+    });
+  };
 
   return (
     <div className="card nested-card">
@@ -215,6 +241,18 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove, fieldOpt
         />
       )}
 
+      {isContractorType && (
+        <ContractorSelectionBuilder
+          contractorTypes={field.contractorTypes}
+          allowNotListedOption={field.allowNotListedOption}
+          allowRegisterRenewOption={field.allowRegisterRenewOption}
+          onContractorTypesChange={(types) => key("contractorTypes", types)}
+          onAllowNotListedOptionChange={(val) => key("allowNotListedOption", val)}
+          onAllowRegisterRenewOptionChange={(val) => key("allowRegisterRenewOption", val)}
+          label="Contractor Selection Settings"
+        />
+      )}
+
       {field.type === "formattedtext" && (
         <div className="html-editor">
           <label className="html-editor-label">
@@ -243,14 +281,39 @@ function FieldEditor({ field, index, activityIndex, onChange, onRemove, fieldOpt
               dangerouslySetInnerHTML={{ __html: field.htmlContent || "<em>No HTML content yet.</em>" }}
             />
           ) : (
-            <textarea
-              className="html-textarea"
-              value={field.htmlContent}
-              onChange={(e) => key("htmlContent", e.target.value)}
-              placeholder={'<p>Enter HTML content here...</p>'}
-              rows={6}
-              spellCheck={false}
-            />
+            <>
+              {fieldOptions.length > 0 && (
+                <div className="html-variable-picker">
+                  <span className="html-variable-label">Insert Variable:</span>
+                  <div className="html-variable-chips">
+                    {fieldOptions.map((opt, idx) => {
+                      const name = typeof opt === "string" ? opt : opt.name;
+                      const label = typeof opt === "string" ? opt : opt.label || opt.name;
+                      return (
+                        <button
+                          key={`vc-${name}-${idx}`}
+                          type="button"
+                          className="html-variable-chip"
+                          onClick={() => insertFieldVariable(name)}
+                          title={`Insert \${${name}} — ${label}`}
+                        >
+                          {'${'}{name}{'}'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <textarea
+                ref={htmlTextareaRef}
+                className="html-textarea"
+                value={field.htmlContent}
+                onChange={(e) => key("htmlContent", e.target.value)}
+                placeholder={'<p>Enter HTML content here...</p>'}
+                rows={6}
+                spellCheck={false}
+              />
+            </>
           )}
         </div>
       )}
@@ -576,7 +639,7 @@ export default function WorkflowBuilder() {
               name: "OwnerText",
               type: "formattedtext",
               htmlContent:
-                '<p>The owner/Licensee assumes responsibility for compliance with the <strong>state building code</strong> and all other applicable codes.</p><p>Failure to comply may result in <em>permits being revoked</em> and additional penalties.</p>',
+                '<p>Dear <strong>\${SiteAddress}</strong>,</p><p>The owner/Licensee assumes responsibility for compliance with the <strong>state building code</strong> and all other applicable codes.</p><p>Failure to comply may result in <em>permits being revoked</em> and additional penalties.</p><p>Contact us at <strong>\${SiteCity}</strong> permit office for more information.</p>',
               matchedTemplateCode: "OwnerText",
             },
           ],
@@ -1236,6 +1299,9 @@ function convertField(f) {
     formulaOutputs: JSON.stringify((f.FormulaOutputs || []).map(convertFormulaOutput), null, 2),
     tableLayout: JSON.stringify(f.TableLayout || { Columns: [] }, null, 2),
     htmlContent: f.HTMLContent || f.htmlContent || "",
+    contractorTypes: f.ContractorTypes || f.contractorTypes || [],
+    allowNotListedOption: f.AllowNotListedOption ?? f.allowNotListedOption ?? false,
+    allowRegisterRenewOption: f.AllowRegisterRenewOption ?? f.allowRegisterRenewOption ?? false,
     _htmlTab: "edit",
   };
 }
