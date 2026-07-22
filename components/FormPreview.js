@@ -10,6 +10,134 @@ function safeParseArray(value) {
   }
 }
 
+function safeParseObject(value) {
+  if (!value) return null;
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try {
+    const p = JSON.parse(value);
+    if (typeof p === "object" && !Array.isArray(p)) return p;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function TablePreview({ tableLayout }) {
+  const layout = safeParseObject(tableLayout);
+  const rows = layout?.Rows;
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return <div className="preview-input preview-table-empty">📋 No table data</div>;
+  }
+
+  return (
+    <div className="preview-table-wrapper">
+      <table className="preview-table">
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={ri} className="preview-table-row">
+              {row.Cells &&
+                row.Cells.map((cell, ci) => (
+                  <td
+                    key={ci}
+                    className={`preview-table-cell ${cell.StaticText && !cell.Entity ? "preview-table-header" : ""} ${ci === 0 ? "preview-table-label" : ""}`}
+                  >
+                    {cell.Entity ? (
+                      <TableEntityInput entity={cell.Entity} />
+                    ) : (
+                      <span className="preview-table-static">
+                        {cell.StaticText || ""}
+                      </span>
+                    )}
+                  </td>
+                ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TableEntityInput({ entity }) {
+  const type = (entity.Type || "text").toLowerCase();
+  const isRequired = entity.Required;
+  const placeholder = entity.Placeholder || "";
+  const label = entity.Label || "";
+
+  return (
+    <div className="preview-table-entity">
+      {type === "text" && (
+        <input
+          type="text"
+          className="preview-table-input"
+          placeholder={placeholder || "Enter value..."}
+          disabled
+          tabIndex={-1}
+          title={label}
+        />
+      )}
+      {type === "number" && (
+        <input
+          type="number"
+          className="preview-table-input"
+          placeholder={placeholder || "0"}
+          disabled
+          tabIndex={-1}
+          title={label}
+        />
+      )}
+      {type === "checkbox" && (
+        <div className="preview-table-checkbox-wrap">
+          <input type="checkbox" disabled tabIndex={-1} title={label} />
+        </div>
+      )}
+      {type === "currency" && (
+        <input
+          type="text"
+          className="preview-table-input preview-table-currency"
+          placeholder={placeholder || "$0.00"}
+          disabled
+          tabIndex={-1}
+          title={label}
+        />
+      )}
+      {type === "date" && (
+        <input
+          type="text"
+          className="preview-table-input"
+          placeholder={placeholder || "Pick date"}
+          disabled
+          tabIndex={-1}
+          title={label}
+        />
+      )}
+      {type === "dropdown" && (
+        <div className="preview-table-input preview-table-dropdown">
+          <span>
+            {entity.Options?.length > 0
+              ? entity.Options[0]?.Label || entity.Options[0]?.Value || "Select..."
+              : "Select..."}
+          </span>
+          <span className="preview-table-dropdown-arrow">▼</span>
+        </div>
+      )}
+      {/* Fallback for unknown types */}
+      {!["text", "number", "checkbox", "currency", "date", "dropdown"].includes(type) && (
+        <input
+          type="text"
+          className="preview-table-input"
+          placeholder={placeholder || "..."}
+          disabled
+          tabIndex={-1}
+          title={label}
+        />
+      )}
+      {isRequired && <span className="preview-table-required" title="Required">*</span>}
+    </div>
+  );
+}
+
 function FieldPreview({ field, index }) {
   const typeIcon = {
     text: "Aa",
@@ -133,7 +261,7 @@ function FieldPreview({ field, index }) {
       )}
 
       {field.type === "table" && (
-        <div className="preview-input preview-table">📋 Table layout</div>
+        <TablePreview tableLayout={field.tableLayout} />
       )}
 
       {field.type === "parcelsearch" && (
